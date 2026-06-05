@@ -29,6 +29,7 @@ export async function grokChat(messages: ChatMessage[]) {
       model: provider.model,
       messages,
       temperature: 0.2,
+      max_tokens: config.AI_MAX_OUTPUT_TOKENS,
       response_format: { type: "json_object" }
     })
   });

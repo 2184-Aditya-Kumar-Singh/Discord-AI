@@ -5,8 +5,6 @@ export function buildSystemPrompt(mode: "assistant" | "admin") {
     .list()
     .map((tool) => ({
       name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
       riskLevel: tool.riskLevel
     }));
 
@@ -21,6 +19,6 @@ export function buildSystemPrompt(mode: "assistant" | "admin") {
     '{"response":"natural reply","needsApproval":false,"riskLevel":"LOW","impact":"short impact summary","toolCalls":[{"tool":"tool_name","parameters":{},"reason":"why"}],"memoryWrites":[]}',
     "Use no tool calls for ordinary conversation or questions that can be answered from context.",
     "High and critical risk actions require approval.",
-    `Available tools: ${JSON.stringify(tools)}`
+    `Available tools by name and risk: ${JSON.stringify(tools)}`
   ].join("\n");
 }

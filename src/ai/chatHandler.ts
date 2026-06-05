@@ -9,6 +9,7 @@ import { executeToolCalls } from "../tools/executor.js";
 import { getServerContext } from "../services/serverContextService.js";
 import { upsertMemory } from "../memory/memoryService.js";
 import { getSubscriptionSummary } from "../services/subscriptionService.js";
+import { config } from "../config.js";
 import { logger } from "../utils/logger.js";
 
 type ChatMode = "assistant" | "admin";
@@ -21,7 +22,7 @@ export async function handleAiChat(message: Message, options: { mode: ChatMode; 
     const history = await prisma.conversationMessage.findMany({
       where: { guildId: message.guildId, channelId: message.channelId },
       orderBy: { createdAt: "desc" },
-      take: 10
+      take: config.AI_HISTORY_MESSAGES
     });
 
     await prisma.conversationMessage.create({
@@ -81,6 +82,13 @@ export async function handleAiChat(message: Message, options: { mode: ChatMode; 
     if (error instanceof GrokApiError && (error.status === 400 || error.status === 401)) {
       await message.reply({
         content: "My AI provider key or model is not valid right now. Ask the bot owner to update `GROK_API_KEY` and the AI model variables in Railway.",
+        allowedMentions: { repliedUser: false }
+      });
+      return;
+    }
+    if (error instanceof GrokApiError && error.status === 429) {
+      await message.reply({
+        content: "The AI provider daily token limit has been reached. Please try again later, lower token settings, switch to a smaller model, or upgrade the provider plan.",
         allowedMentions: { repliedUser: false }
       });
       return;

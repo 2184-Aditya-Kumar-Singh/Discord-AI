@@ -41,6 +41,8 @@ Add these variables in Railway:
 | `AI_PROVIDER` | Optional | `auto`, `xai`, or `groq`. Defaults to `auto`. `gsk_` keys are treated as Groq keys. |
 | `GROK_MODEL` | Optional | xAI model. Defaults to `grok-4`. |
 | `GROQ_MODEL` | Optional | Groq model. Defaults to `llama-3.3-70b-versatile`. |
+| `AI_MAX_OUTPUT_TOKENS` | Optional | Defaults to `700`. Lower this if Groq token limits are tight. |
+| `AI_HISTORY_MESSAGES` | Optional | Defaults to `4`. Lower this to reduce token usage. |
 | `AI_CHANNEL_IDS` | Optional | Comma-separated fallback assistant channels before `/setup`. Usually leave blank. |
 | `APPROVAL_TIMEOUT_MINUTES` | Optional | Defaults to `60`. |
 
