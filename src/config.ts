@@ -10,7 +10,7 @@ const envSchema = z.object({
   COMMAND_GUILD_ID: z.string().optional(),
   AI_PROVIDER: z.enum(["xai", "groq", "auto"]).default("auto"),
   GROK_MODEL: z.string().default("grok-4"),
-  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  GROQ_MODEL: z.string().default("groq/compound"),
   AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(700),
   AI_HISTORY_MESSAGES: z.coerce.number().int().min(0).max(10).default(4),
   AI_CHANNEL_IDS: z.string().default(""),
