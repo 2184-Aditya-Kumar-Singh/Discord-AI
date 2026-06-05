@@ -38,7 +38,9 @@ Add these variables in Railway:
 | `BOT_OWNER_ID` | Yes | Your Discord user ID. Only this user can run `/continue`. |
 | `DISCORD_CLIENT_ID` | Optional | Discord application/client ID. Kept for clarity and future REST registration flows. |
 | `COMMAND_GUILD_ID` | Optional | Use during testing to register slash commands instantly in one server. Leave blank for global commands. |
-| `GROK_MODEL` | Optional | Defaults to `grok-4`. |
+| `AI_PROVIDER` | Optional | `auto`, `xai`, or `groq`. Defaults to `auto`. `gsk_` keys are treated as Groq keys. |
+| `GROK_MODEL` | Optional | xAI model. Defaults to `grok-4`. |
+| `GROQ_MODEL` | Optional | Groq model. Defaults to `llama-3.3-70b-versatile`. |
 | `AI_CHANNEL_IDS` | Optional | Comma-separated fallback assistant channels before `/setup`. Usually leave blank. |
 | `APPROVAL_TIMEOUT_MINUTES` | Optional | Defaults to `60`. |
 

@@ -1,7 +1,7 @@
 import type { Message } from "discord.js";
 import type { Guild } from "@prisma/client";
 import type { AiPlan } from "./types.js";
-import { grokChat } from "./grokClient.js";
+import { GrokApiError, grokChat } from "./grokClient.js";
 import { buildSystemPrompt } from "./systemPrompt.js";
 import { prisma } from "../database/prisma.js";
 import { createApprovalRequest } from "../approvals/approvalService.js";
@@ -78,6 +78,13 @@ export async function handleAiChat(message: Message, options: { mode: ChatMode; 
     await replyAndRemember(message, `${plan.response}\n\n${results.map((result) => result.summary).join("\n")}`);
   } catch (error) {
     logger.error("AI chat failed", { error: error instanceof Error ? error.message : String(error) });
+    if (error instanceof GrokApiError && (error.status === 400 || error.status === 401)) {
+      await message.reply({
+        content: "My AI provider key or model is not valid right now. Ask the bot owner to update `GROK_API_KEY` and the AI model variables in Railway.",
+        allowedMentions: { repliedUser: false }
+      });
+      return;
+    }
     await message.reply("I hit an internal error while reasoning about that. The action was not executed.");
   }
 }

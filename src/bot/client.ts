@@ -21,7 +21,7 @@ export function createDiscordClient() {
     partials: [Partials.Channel, Partials.Message, Partials.Reaction]
   });
 
-  client.once("ready", async () => {
+  client.once("clientReady", async () => {
     logger.info(`DAIOS online as ${client.user?.tag ?? "unknown bot"}`);
     await registerSlashCommands(client);
     for (const guild of client.guilds.cache.values()) {

@@ -2,6 +2,7 @@ import {
   ChannelType,
   ChatInputCommandInteraction,
   Client,
+  MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder
 } from "discord.js";
@@ -61,14 +62,14 @@ export function registerSlashCommandEvents(client: Client) {
 
 async function handleSetup(interaction: ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({ content: "Setup can only be run inside a server.", ephemeral: true });
+    await interaction.reply({ content: "Setup can only be run inside a server.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   const isOwner = interaction.user.id === config.BOT_OWNER_ID || interaction.user.id === interaction.guild.ownerId;
   const hasManageGuild = interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
   if (!isOwner && !hasManageGuild) {
-    await interaction.reply({ content: "You need Manage Server permission to configure DAIOS.", ephemeral: true });
+    await interaction.reply({ content: "You need Manage Server permission to configure DAIOS.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -93,18 +94,18 @@ async function handleSetup(interaction: ChatInputCommandInteraction) {
         ? `Admin subscription active until ${subscription.endsAt?.toISOString()}.`
         : "Admin subscription has 0 days remaining. Contact the bot owner to start the $50/month plan."
     ].join("\n"),
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
 async function handleContinue(interaction: ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({ content: "This command must be run inside the server whose subscription should be extended.", ephemeral: true });
+    await interaction.reply({ content: "This command must be run inside the server whose subscription should be extended.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   if (interaction.user.id !== config.BOT_OWNER_ID) {
-    await interaction.reply({ content: "Only the bot owner can extend paid administrator subscriptions.", ephemeral: true });
+    await interaction.reply({ content: "Only the bot owner can extend paid administrator subscriptions.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -114,13 +115,13 @@ async function handleContinue(interaction: ChatInputCommandInteraction) {
 
   await interaction.reply({
     content: `Paid administrator subscription extended by ${days} day(s). It is now active until ${summary.endsAt?.toISOString()}.`,
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
 async function handleStatus(interaction: ChatInputCommandInteraction) {
   if (!interaction.guild) {
-    await interaction.reply({ content: "Status can only be checked inside a server.", ephemeral: true });
+    await interaction.reply({ content: "Status can only be checked inside a server.", flags: MessageFlags.Ephemeral });
     return;
   }
 
@@ -137,6 +138,6 @@ async function handleStatus(interaction: ChatInputCommandInteraction) {
         ? `Paid administrator subscription: active, ${subscription.daysRemaining} day(s) remaining, ends ${subscription.endsAt?.toISOString()}`
         : "Paid administrator subscription: inactive, 0 days remaining. Contact the bot owner to start the $50 USD/month administrator plan."
     ].join("\n"),
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
