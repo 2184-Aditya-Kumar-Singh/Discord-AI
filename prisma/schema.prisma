@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  EXECUTED
+}
+
+enum AutomationStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+model Guild {
+  id                 String    @id
+  name               String
+  ownerId            String
+  memberCount        Int       @default(0)
+  assistantChannelId String?
+  adminChannelId     String?
+  subscriptionEndsAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  channels     ChannelSnapshot[]
+  roles        RoleSnapshot[]
+  members      MemberSnapshot[]
+  memories     Memory[]
+  approvals    ApprovalRequest[]
+  toolLogs     ToolExecutionLog[]
+  events       EventLog[]
+  automations  Automation[]
+  subscription SubscriptionLedger[]
+}
+
+model SubscriptionLedger {
+  id        String   @id @default(cuid())
+  guildId   String
+  daysAdded Int
+  priceUsd  Int      @default(50)
+  addedById String
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, createdAt])
+}
+
+model ChannelSnapshot {
+  id          String   @id
+  guildId     String
+  name        String
+  type        String
+  parentId    String?
+  position    Int?
+  lastSeenAt  DateTime @default(now())
+  messageHint Int      @default(0)
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+model RoleSnapshot {
+  id          String   @id
+  guildId     String
+  name        String
+  color       Int
+  position    Int
+  permissions String
+  managed     Boolean
+  lastSeenAt  DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+}
+
+model MemberSnapshot {
+  id          String
+  guildId     String
+  username    String
+  displayName String?
+  joinedAt    DateTime?
+  leftAt      DateTime?
+  messageCount Int     @default(0)
+  lastActiveAt DateTime?
+  lastSeenAt  DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@id([id, guildId])
+  @@index([guildId])
+}
+
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  guildId   String?
+  channelId String
+  userId    String
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([guildId, channelId, createdAt])
+}
+
+model Memory {
+  id        String   @id @default(cuid())
+  guildId   String?
+  key       String
+  value     String
+  source    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guild Guild? @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, key])
+}
+
+model ApprovalRequest {
+  id          String         @id @default(cuid())
+  guildId     String
+  channelId   String?
+  requesterId String
+  approverId  String?
+  status      ApprovalStatus @default(PENDING)
+  reason      String
+  impact      String
+  tools       Json
+  riskLevel   RiskLevel
+  messageId   String?
+  expiresAt   DateTime
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, status])
+}
+
+model ToolExecutionLog {
+  id          String    @id @default(cuid())
+  guildId     String
+  userId      String
+  toolName    String
+  riskLevel   RiskLevel
+  parameters  Json
+  result      Json?
+  success     Boolean
+  error       String?
+  approvalId  String?
+  createdAt   DateTime  @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, toolName, createdAt])
+}
+
+model EventLog {
+  id        String   @id @default(cuid())
+  guildId   String
+  type      String
+  actorId   String?
+  subjectId String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, type, createdAt])
+}
+
+model Automation {
+  id          String           @id @default(cuid())
+  guildId     String
+  name        String
+  description String
+  trigger     Json
+  conditions  Json
+  actions     Json
+  approvalId  String?
+  status      AutomationStatus @default(ACTIVE)
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, status])
+}
