@@ -52,7 +52,7 @@ function resolveProvider() {
       name: "Groq",
       apiKey: key,
       endpoint: "https://api.groq.com/openai/v1/chat/completions",
-      model: config.GROQ_MODEL
+      model: process.env.GROQ_MODEL ?? legacyGroqModelAlias() ?? config.GROQ_MODEL
     };
   }
 
@@ -62,4 +62,10 @@ function resolveProvider() {
     endpoint: "https://api.x.ai/v1/chat/completions",
     model: config.GROK_MODEL
   };
+}
+
+function legacyGroqModelAlias() {
+  const model = process.env.GROK_MODEL;
+  if (!model || model.toLowerCase().startsWith("grok-")) return undefined;
+  return model;
 }
