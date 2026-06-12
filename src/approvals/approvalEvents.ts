@@ -13,37 +13,38 @@ export function registerApprovalEvents(client: Client) {
 }
 
 async function handleApprovalButton(interaction: ButtonInteraction) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
   const [, action, approvalId] = interaction.customId.split(":");
   const approval = await prisma.approvalRequest.findUnique({ where: { id: approvalId } });
   if (!approval) {
-    await interaction.reply({ content: "Approval request not found.", flags: MessageFlags.Ephemeral });
+    await interaction.editReply({ content: "Approval request not found." });
     return;
   }
 
   const guild = await interaction.client.guilds.fetch(approval.guildId);
   const isAllowed = interaction.user.id === config.BOT_OWNER_ID || interaction.user.id === guild.ownerId;
   if (!isAllowed) {
-    await interaction.reply({ content: "Only the bot owner or server owner can approve this.", flags: MessageFlags.Ephemeral });
+    await interaction.editReply({ content: "Only the bot owner or server owner can approve this." });
     return;
   }
 
   if (approval.status !== "PENDING" || approval.expiresAt < new Date()) {
     await prisma.approvalRequest.update({ where: { id: approval.id }, data: { status: "EXPIRED" } }).catch(() => null);
-    await interaction.reply({ content: "This approval is no longer pending.", flags: MessageFlags.Ephemeral });
+    await interaction.editReply({ content: "This approval is no longer pending." });
     return;
   }
 
   if (action === "reject") {
     await prisma.approvalRequest.update({ where: { id: approval.id }, data: { status: "REJECTED", approverId: interaction.user.id } });
-    await interaction.reply({ content: "Rejected. No actions were executed.", flags: MessageFlags.Ephemeral });
+    await interaction.editReply({ content: "Rejected. No actions were executed." });
     return;
   }
 
   const subscription = await getSubscriptionSummary(guild.id);
   if (!subscription.active) {
-    await interaction.reply({
-      content: "This server's paid administrator subscription is inactive, so approved administrator actions cannot execute. Contact the bot owner to start the $50 USD/month plan.",
-      flags: MessageFlags.Ephemeral
+    await interaction.editReply({
+      content: "This server's paid administrator subscription is inactive, so approved administrator actions cannot execute. Contact the bot owner to start the $50 USD/month plan."
     });
     return;
   }
@@ -52,7 +53,7 @@ async function handleApprovalButton(interaction: ButtonInteraction) {
   if (approval.taskId) {
     const summary = await completeApprovedTask(approval.taskId, guild, approval.id);
     await prisma.approvalRequest.update({ where: { id: approval.id }, data: { status: "EXECUTED" } });
-    await interaction.reply({ content: summary, flags: MessageFlags.Ephemeral });
+    await interaction.editReply({ content: summary });
     return;
   }
 
@@ -64,8 +65,7 @@ async function handleApprovalButton(interaction: ButtonInteraction) {
     toolCalls: approval.tools as never
   });
   await prisma.approvalRequest.update({ where: { id: approval.id }, data: { status: "EXECUTED" } });
-  await interaction.reply({
-    content: `Approved and executed:\n${results.map((result, index) => `${index + 1}. ${result.ok ? "OK" : "FAILED"} - ${result.summary}`).join("\n")}`,
-    flags: MessageFlags.Ephemeral
+  await interaction.editReply({
+    content: `Approved and executed:\n${results.map((result, index) => `${index + 1}. ${result.ok ? "OK" : "FAILED"} - ${result.summary}`).join("\n")}`
   });
 }
