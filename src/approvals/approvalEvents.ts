@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import { prisma } from "../database/prisma.js";
 import { getSubscriptionSummary } from "../services/subscriptionService.js";
 import { executeToolCalls } from "../tools/executor.js";
+import { completeApprovedTask } from "../agent/orchestrator.js";
 
 export function registerApprovalEvents(client: Client) {
   client.on("interactionCreate", async (interaction) => {
@@ -48,6 +49,13 @@ async function handleApprovalButton(interaction: ButtonInteraction) {
   }
 
   await prisma.approvalRequest.update({ where: { id: approval.id }, data: { status: "APPROVED", approverId: interaction.user.id } });
+  if (approval.taskId) {
+    const summary = await completeApprovedTask(approval.taskId, guild, approval.id);
+    await prisma.approvalRequest.update({ where: { id: approval.id }, data: { status: "EXECUTED" } });
+    await interaction.reply({ content: summary, flags: MessageFlags.Ephemeral });
+    return;
+  }
+
   const results = await executeToolCalls({
     guild,
     channelId: approval.channelId ?? undefined,
@@ -56,5 +64,8 @@ async function handleApprovalButton(interaction: ButtonInteraction) {
     toolCalls: approval.tools as never
   });
   await prisma.approvalRequest.update({ where: { id: approval.id }, data: { status: "EXECUTED" } });
-  await interaction.reply({ content: `Approved and executed:\n${results.map((result) => result.summary).join("\n")}`, flags: MessageFlags.Ephemeral });
+  await interaction.reply({
+    content: `Approved and executed:\n${results.map((result, index) => `${index + 1}. ${result.ok ? "OK" : "FAILED"} - ${result.summary}`).join("\n")}`,
+    flags: MessageFlags.Ephemeral
+  });
 }

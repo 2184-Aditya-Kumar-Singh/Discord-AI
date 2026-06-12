@@ -3,6 +3,87 @@ import type { ToolDefinition } from "../types.js";
 
 export const workflowTools: ToolDefinition[] = [
   {
+    name: "create_server_architecture",
+    description: "Create a complete Discord server architecture with roles, categories, text channels, permission overwrites, and starter messages.",
+    riskLevel: "HIGH",
+    parameters: {
+      roles: "array of { name, color?, hoist? }",
+      categories: "array of { name, channels: [{ name, topic?, starterMessage?, privateToRoles? }] }",
+      reason: "optional audit log reason"
+    },
+    async execute(params, context) {
+      const reason = String(params.reason ?? "DAIOS approved autonomous server architecture");
+      const createdRoles = new Map<string, string>();
+      const roleInputs = Array.isArray(params.roles) ? params.roles : [];
+
+      for (const roleInput of roleInputs) {
+        if (!isObject(roleInput) || !roleInput.name) continue;
+        const name = String(roleInput.name);
+        const existing = context.guild.roles.cache.find((role) => role.name.toLowerCase() === name.toLowerCase());
+        if (existing) {
+          createdRoles.set(name, existing.id);
+          continue;
+        }
+        const role = await context.guild.roles.create({
+          name,
+          color: roleInput.color as never,
+          hoist: typeof roleInput.hoist === "boolean" ? roleInput.hoist : undefined,
+          reason
+        });
+        createdRoles.set(name, role.id);
+      }
+
+      const createdCategories: Array<{ name: string; id: string }> = [];
+      const createdChannels: Array<{ name: string; id: string }> = [];
+      const categoryInputs = Array.isArray(params.categories) ? params.categories : [];
+
+      for (const categoryInput of categoryInputs) {
+        if (!isObject(categoryInput) || !categoryInput.name) continue;
+        const categoryName = String(categoryInput.name);
+        const category = await context.guild.channels.create({
+          name: categoryName,
+          type: ChannelType.GuildCategory,
+          reason
+        });
+        createdCategories.push({ name: category.name, id: category.id });
+
+        const channels = Array.isArray(categoryInput.channels) ? categoryInput.channels : [];
+        for (const channelInput of channels) {
+          if (!isObject(channelInput) || !channelInput.name) continue;
+          const privateToRoles = Array.isArray(channelInput.privateToRoles) ? channelInput.privateToRoles.map(String) : [];
+          const permissionOverwrites =
+            privateToRoles.length > 0
+              ? [
+                  { id: context.guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                  ...privateToRoles
+                    .map((roleName) => createdRoles.get(roleName))
+                    .filter((roleId): roleId is string => Boolean(roleId))
+                    .map((roleId) => ({ id: roleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }))
+                ]
+              : undefined;
+          const channel = await context.guild.channels.create({
+            name: String(channelInput.name),
+            type: ChannelType.GuildText,
+            parent: category.id,
+            topic: channelInput.topic ? String(channelInput.topic).slice(0, 1024) : undefined,
+            permissionOverwrites,
+            reason
+          });
+          createdChannels.push({ name: channel.name, id: channel.id });
+          if (channelInput.starterMessage) {
+            await channel.send(String(channelInput.starterMessage).slice(0, 1900));
+          }
+        }
+      }
+
+      return {
+        ok: true,
+        summary: `Created architecture with ${createdRoles.size} role(s), ${createdCategories.length} categor(ies), and ${createdChannels.length} channel(s).`,
+        data: { roles: Object.fromEntries(createdRoles), categories: createdCategories, channels: createdChannels }
+      };
+    }
+  },
+  {
     name: "create_staff_application_system",
     description: "Create channels and roles for a staff application review workflow.",
     riskLevel: "HIGH",
@@ -162,3 +243,7 @@ export const workflowTools: ToolDefinition[] = [
     }
   }
 ];
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}

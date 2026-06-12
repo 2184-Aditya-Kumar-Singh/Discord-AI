@@ -14,3 +14,20 @@ export type AiPlan = {
   toolCalls: AiToolCall[];
   memoryWrites?: Array<{ key: string; value: string; source?: string }>;
 };
+
+export type AgentPlanStep = {
+  title: string;
+  tool?: string;
+  parameters?: Record<string, unknown>;
+  reason: string;
+};
+
+export type AgentPlan = {
+  response: string;
+  planSummary: string;
+  needsApproval: boolean;
+  riskLevel: RiskLevel;
+  impact: string;
+  steps: AgentPlanStep[];
+  memoryWrites?: Array<{ key: string; value: string; source?: string }>;
+};

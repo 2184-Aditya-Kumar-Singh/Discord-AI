@@ -28,6 +28,26 @@ enum AutomationStatus {
   DISABLED
 }
 
+enum TaskStatus {
+  QUEUED
+  PLANNING
+  AWAITING_APPROVAL
+  EXECUTING
+  OBSERVING
+  REFLECTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TaskStepStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
 model Guild {
   id                 String    @id
   name               String
@@ -48,6 +68,9 @@ model Guild {
   events       EventLog[]
   automations  Automation[]
   subscription SubscriptionLedger[]
+  tasks        AgentTask[]
+  templates    ServerTemplate[]
+  reflections  ReflectionLog[]
 }
 
 model SubscriptionLedger {
@@ -141,6 +164,7 @@ model Memory {
 model ApprovalRequest {
   id          String         @id @default(cuid())
   guildId     String
+  taskId      String?
   channelId   String?
   requesterId String
   approverId  String?
@@ -155,8 +179,10 @@ model ApprovalRequest {
   updatedAt   DateTime       @updatedAt
 
   guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  task  AgentTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([guildId, status])
+  @@index([taskId])
 }
 
 model ToolExecutionLog {
@@ -208,4 +234,99 @@ model Automation {
   guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
   @@index([guildId, status])
+}
+
+model AgentTask {
+  id             String     @id @default(cuid())
+  guildId        String
+  channelId      String?
+  requesterId    String
+  goal           String
+  status         TaskStatus @default(QUEUED)
+  mode           String     @default("admin")
+  planSummary    String?
+  impact         String?
+  riskLevel      RiskLevel  @default(LOW)
+  currentCycle   Int        @default(0)
+  maxCycles      Int        @default(3)
+  lastError      String?
+  completedAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  guild      Guild             @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  steps      AgentTaskStep[]
+  history    TaskHistory[]
+  approvals  ApprovalRequest[]
+  reflections ReflectionLog[]
+
+  @@index([guildId, status, createdAt])
+}
+
+model AgentTaskStep {
+  id          String         @id @default(cuid())
+  taskId      String
+  position    Int
+  title       String
+  toolName    String?
+  parameters  Json?
+  reason      String
+  status      TaskStepStatus @default(PENDING)
+  result      Json?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  task AgentTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, position])
+  @@index([taskId, status])
+}
+
+model TaskHistory {
+  id        String   @id @default(cuid())
+  taskId    String
+  type      String
+  message   String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  task AgentTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+model ReflectionLog {
+  id              String   @id @default(cuid())
+  guildId          String
+  taskId           String?
+  critique         String
+  missingItems     Json
+  followUpToolCalls Json?
+  createdAt        DateTime @default(now())
+
+  guild Guild      @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  task  AgentTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([guildId, createdAt])
+  @@index([taskId])
+}
+
+model ServerTemplate {
+  id          String   @id @default(cuid())
+  guildId     String?
+  slug        String
+  name        String
+  description String
+  category    String
+  content     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  guild Guild? @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, slug])
+  @@index([category])
 }

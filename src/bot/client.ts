@@ -6,6 +6,7 @@ import { registerDiscordEvents } from "../events/registerEvents.js";
 import { registerSlashCommandEvents, registerSlashCommands } from "./slashCommands.js";
 import { logger } from "../utils/logger.js";
 import { syncGuildKnowledge } from "../services/guildKnowledgeService.js";
+import { recoverInterruptedTasks } from "../agent/recovery.js";
 
 export function createDiscordClient() {
   const client = new Client({
@@ -24,6 +25,7 @@ export function createDiscordClient() {
   client.once("clientReady", async () => {
     logger.info(`DAIOS online as ${client.user?.tag ?? "unknown bot"}`);
     await registerSlashCommands(client);
+    await recoverInterruptedTasks();
     for (const guild of client.guilds.cache.values()) {
       await syncGuildKnowledge(guild).catch((error) =>
         logger.warn("Failed to sync guild on startup", { guildId: guild.id, error: error instanceof Error ? error.message : String(error) })

@@ -22,7 +22,7 @@ export async function grokChat(messages: ChatMessage[]) {
   const response = await fetch(provider.endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.GROK_API_KEY}`,
+      Authorization: `Bearer ${provider.apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -45,10 +45,12 @@ export async function grokChat(messages: ChatMessage[]) {
 }
 
 function resolveProvider() {
-  const provider = config.AI_PROVIDER === "auto" ? (config.GROK_API_KEY.startsWith("gsk_") ? "groq" : "xai") : config.AI_PROVIDER;
+  const key = config.GROQ_API_KEY ?? config.GROK_API_KEY ?? "";
+  const provider = config.AI_PROVIDER === "auto" ? (key.startsWith("gsk_") ? "groq" : "xai") : config.AI_PROVIDER;
   if (provider === "groq") {
     return {
       name: "Groq",
+      apiKey: key,
       endpoint: "https://api.groq.com/openai/v1/chat/completions",
       model: config.GROQ_MODEL
     };
@@ -56,6 +58,7 @@ function resolveProvider() {
 
   return {
     name: "xAI",
+    apiKey: key,
     endpoint: "https://api.x.ai/v1/chat/completions",
     model: config.GROK_MODEL
   };

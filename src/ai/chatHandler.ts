@@ -11,6 +11,7 @@ import { upsertMemory } from "../memory/memoryService.js";
 import { getSubscriptionSummary } from "../services/subscriptionService.js";
 import { config } from "../config.js";
 import { logger } from "../utils/logger.js";
+import { runAutonomousGoal } from "../agent/orchestrator.js";
 
 type ChatMode = "assistant" | "admin";
 
@@ -28,6 +29,21 @@ export async function handleAiChat(message: Message, options: { mode: ChatMode; 
     await prisma.conversationMessage.create({
       data: { guildId: message.guildId, channelId: message.channelId, userId: message.author.id, role: "user", content: message.content }
     });
+
+    if (options.mode === "admin") {
+      const subscription = await getSubscriptionSummary(message.guild!.id);
+      if (!subscription.active) {
+        await replyAndRemember(
+          message,
+          "Administrator command execution is not active for this server. This server has 0 days of paid subscription remaining. Please contact the bot owner to start the administrator plan ($50 USD per month)."
+        );
+        return;
+      }
+
+      const result = await runAutonomousGoal(message);
+      await replyAndRemember(message, result.content);
+      return;
+    }
 
     const raw = await grokChat([
       { role: "system", content: buildSystemPrompt(options.mode) },
@@ -55,15 +71,6 @@ export async function handleAiChat(message: Message, options: { mode: ChatMode; 
       return;
     }
 
-    const subscription = await getSubscriptionSummary(message.guild!.id);
-    if (!subscription.active) {
-      await replyAndRemember(
-        message,
-        "Administrator command execution is not active for this server. This server has 0 days of paid subscription remaining. Please contact the bot owner to start the administrator plan ($50 USD per month)."
-      );
-      return;
-    }
-
     if (plan.needsApproval || plan.riskLevel === "HIGH" || plan.riskLevel === "CRITICAL") {
       const approval = await createApprovalRequest(message, plan);
       await replyAndRemember(message, `${plan.response}\n\nApproval requested from the server owner. Request ID: ${approval.id}`);
@@ -81,7 +88,7 @@ export async function handleAiChat(message: Message, options: { mode: ChatMode; 
     logger.error("AI chat failed", { error: error instanceof Error ? error.message : String(error) });
     if (error instanceof GrokApiError && (error.status === 400 || error.status === 401)) {
       await message.reply({
-        content: "My AI provider key or model is not valid right now. Ask the bot owner to update `GROK_API_KEY` and the AI model variables in Railway.",
+        content: "My AI provider key or model is not valid right now. Ask the bot owner to update `GROQ_API_KEY` and the AI model variables in Railway.",
         allowedMentions: { repliedUser: false }
       });
       return;

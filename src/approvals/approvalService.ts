@@ -4,12 +4,13 @@ import type { AiPlan } from "../ai/types.js";
 import { config } from "../config.js";
 import { prisma } from "../database/prisma.js";
 
-export async function createApprovalRequest(message: Message, plan: AiPlan): Promise<ApprovalRequest> {
+export async function createApprovalRequest(message: Message, plan: AiPlan, taskId?: string): Promise<ApprovalRequest> {
   const guild = message.guild!;
   const expiresAt = new Date(Date.now() + config.APPROVAL_TIMEOUT_MINUTES * 60_000);
   const approval = await prisma.approvalRequest.create({
     data: {
       guildId: guild.id,
+      taskId,
       channelId: message.channelId,
       requesterId: message.author.id,
       reason: plan.response,
