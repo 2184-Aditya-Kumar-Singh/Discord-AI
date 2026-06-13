@@ -47,12 +47,19 @@ export const roleTools: ToolDefinition[] = [
   },
   {
     name: "assign_role",
-    description: "Assign a role to a member.",
+    description: "Assign a role to a member by Discord ID or resolvable display/username.",
     riskLevel: "HIGH",
-    parameters: { memberId: "string", roleId: "string", reason: "optional audit log reason" },
+    parameters: {
+      memberId: "optional Discord snowflake",
+      memberName: "optional username, display name, or mention",
+      roleId: "optional Discord snowflake",
+      roleName: "optional role name",
+      reason: "optional audit log reason"
+    },
     async execute(params, context) {
-      const member = await context.guild.members.fetch(String(params.memberId));
-      const role = await context.guild.roles.fetch(String(params.roleId));
+      const member = await resolveMember(context.guild, params.memberId, params.memberName);
+      if (!member) return { ok: false, summary: "Member not found. Use a Discord user ID, mention, username, or display name." };
+      const role = await resolveRole(context.guild, params.roleId, params.roleName);
       if (!role) return { ok: false, summary: "Role not found." };
       await member.roles.add(role, String(params.reason ?? "DAIOS approved role assignment"));
       return { ok: true, summary: `Assigned ${role.name} to ${member.displayName}.` };
@@ -60,15 +67,64 @@ export const roleTools: ToolDefinition[] = [
   },
   {
     name: "remove_role",
-    description: "Remove a role from a member.",
+    description: "Remove a role from a member by Discord ID or resolvable display/username.",
     riskLevel: "HIGH",
-    parameters: { memberId: "string", roleId: "string", reason: "optional audit log reason" },
+    parameters: {
+      memberId: "optional Discord snowflake",
+      memberName: "optional username, display name, or mention",
+      roleId: "optional Discord snowflake",
+      roleName: "optional role name",
+      reason: "optional audit log reason"
+    },
     async execute(params, context) {
-      const member = await context.guild.members.fetch(String(params.memberId));
-      const role = await context.guild.roles.fetch(String(params.roleId));
+      const member = await resolveMember(context.guild, params.memberId, params.memberName);
+      if (!member) return { ok: false, summary: "Member not found. Use a Discord user ID, mention, username, or display name." };
+      const role = await resolveRole(context.guild, params.roleId, params.roleName);
       if (!role) return { ok: false, summary: "Role not found." };
       await member.roles.remove(role, String(params.reason ?? "DAIOS approved role removal"));
       return { ok: true, summary: `Removed ${role.name} from ${member.displayName}.` };
     }
   }
 ];
+
+function isSnowflake(value: unknown) {
+  return typeof value === "string" && /^\d{17,20}$/.test(value);
+}
+
+function cleanLookup(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const mention = value.match(/^<@!?(\d{17,20})>$/);
+  if (mention) return mention[1];
+  return value
+    .replace(/'s\s+id$/i, "")
+    .replace(/\s+id$/i, "")
+    .trim();
+}
+
+async function resolveMember(guild: import("discord.js").Guild, memberId: unknown, memberName: unknown) {
+  const idOrName = cleanLookup(memberId) ?? cleanLookup(memberName);
+  if (!idOrName) return null;
+  if (isSnowflake(idOrName)) return guild.members.fetch(idOrName).catch(() => null);
+
+  const query = idOrName.toLowerCase();
+  const fetched = await guild.members.fetch({ query: idOrName, limit: 10 }).catch(() => null);
+  const candidates = fetched ? [...fetched.values()] : [...guild.members.cache.values()];
+  return (
+    candidates.find((member) => member.displayName.toLowerCase() === query || member.user.username.toLowerCase() === query) ??
+    candidates.find((member) => member.displayName.toLowerCase().includes(query) || member.user.username.toLowerCase().includes(query)) ??
+    null
+  );
+}
+
+async function resolveRole(guild: import("discord.js").Guild, roleId: unknown, roleName: unknown) {
+  const idOrName = cleanLookup(roleId) ?? cleanLookup(roleName);
+  if (!idOrName) return null;
+  if (isSnowflake(idOrName)) return guild.roles.fetch(idOrName).catch(() => null);
+
+  const query = idOrName.toLowerCase();
+  return (
+    guild.roles.cache.find((role) => role.name.toLowerCase() === query) ??
+    guild.roles.cache.find((role) => role.name.toLowerCase().includes(query)) ??
+    null
+  );
+}
